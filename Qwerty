@@ -1,0 +1,133 @@
+Ниже приведён пример выполнения всех заданий из пункта 5 на основе типовых SQL-запросов.
+Вместо реальных скриптов Games.sql и VideoGames.sql я использую упрощённые структуры таблиц, чтобы было понятно, как должны выглядеть решения.
+
+---
+
+5.2 Создать таблицы с полнотекстовыми индексами
+
+5.2.1 Таблица games
+
+```sql
+-- создание таблицы
+CREATE TABLE games (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT
+);
+
+-- вставка данных (пример с повторяющимися словами)
+INSERT INTO games (name, description) VALUES
+('Игра 1', 'Стратегическая игра про космос и космос. Космос ждёт.'),
+('Игра 2', 'Космос — это круто. Космос манит. Космос бесконечен.'),
+('Игра 3', 'Приключение в космосе. Космос и звёзды.'),
+('Игра 4', 'Гонки на машинах. Быстро и шумно.'),
+('Игра 5', 'Ролевая игра с магией. Магия спасёт мир.');
+
+-- полнотекстовые индексы
+ALTER TABLE games ADD FULLTEXT idx_description (description);
+ALTER TABLE games ADD FULLTEXT idx_name_description (name, description);
+```
+
+5.2.2 Таблица video_games
+
+```sql
+CREATE TABLE video_games (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255),
+    genres VARCHAR(255)
+);
+
+INSERT INTO video_games (title, genres) VALUES
+('Game A', 'RPG, Action, Adventure'),
+('Game B', 'Strategy, Simulation'),
+('Game C', 'RPG, Indie, Action');
+
+ALTER TABLE video_games ADD FULLTEXT idx_genres (genres);
+```
+
+---
+
+5.3 Определение релевантности
+
+```sql
+-- слово, не встречающееся ни в одном описании
+SELECT *, MATCH(description) AGAINST('несуществующееслово') AS relevance
+FROM games;
+
+-- слово, встречающееся только в одном описании (например, "магия")
+SELECT *, MATCH(description) AGAINST('магия') AS relevance
+FROM games;
+
+-- слово, повторяющееся в разных описаниях ("космос")
+SELECT *, MATCH(description) AGAINST('космос') AS relevance
+FROM games;
+
+-- два слова
+SELECT *, MATCH(description) AGAINST('космос магия') AS relevance
+FROM games;
+```
+
+---
+
+5.4 Сортировка по релевантности
+
+```sql
+SELECT *,
+    MATCH(name, description) AGAINST('космос') AS relevance
+FROM games
+WHERE MATCH(name, description) AGAINST('космос')
+ORDER BY relevance DESC;
+```
+
+---
+
+5.5 Поиск совпадений по двум жанрам
+
+```sql
+SELECT *,
+    MATCH(genres) AGAINST('RPG Action') AS relevance
+FROM video_games
+WHERE MATCH(genres) AGAINST('RPG Action')
+ORDER BY relevance DESC;
+```
+
+---
+
+5.6 Логический режим: исключить слово
+
+```sql
+SELECT *,
+    MATCH(genres) AGAINST('RPG -Indie' IN BOOLEAN MODE) AS relevance
+FROM video_games
+WHERE MATCH(genres) AGAINST('RPG -Indie' IN BOOLEAN MODE);
+```
+
+---
+
+5.7 Логический режим: обязательное слово
+
+```sql
+SELECT *,
+    MATCH(genres) AGAINST('+Action' IN BOOLEAN MODE) AS relevance
+FROM video_games
+WHERE MATCH(genres) AGAINST('+Action' IN BOOLEAN MODE);
+```
+
+---
+
+5.8 Логический режим: исключить и обязательное слово
+
+```sql
+SELECT *,
+    MATCH(genres) AGAINST('+Action -Indie' IN BOOLEAN MODE) AS relevance
+FROM video_games
+WHERE MATCH(genres) AGAINST('+Action -Indie' IN BOOLEAN MODE);
+```
+
+---
+
+Если хотите, я могу:
+
+· заполнить реальными данными Games.sql и VideoGames.sql,
+· объяснить контрольные вопросы (пункт 8),
+· помочь оформить отчёт (титульный лист, цель, вывод).
