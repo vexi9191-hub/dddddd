@@ -1,0 +1,129 @@
+-- =====================================================
+-- ЗАДАНИЕ 5: Работа с событиями в MySQL
+-- База данных: Market (или любая другая, по выбору)
+-- =====================================================
+
+-- -----------------------------------------------------
+-- 5.1.3 Создание таблицы myEventTable
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS myEventTable (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    eventTime DATETIME NOT NULL,
+    eventName VARCHAR(50) NOT NULL
+)
+COMMENT = 'Таблица для логирования событий планировщика';
+
+-- -----------------------------------------------------
+-- 5.1.4 Событие event1: каждые 10 секунд в течение 5 минут
+-- -----------------------------------------------------
+-- Включение планировщика событий (если ещё не включён).
+-- Способ 1 (через конфиг my.ini / my.cnf):
+--   [mysqld]
+--   event_scheduler = ON
+-- Способ 2 (в текущей сессии, до перезапуска сервера):
+SET GLOBAL event_scheduler = ON;
+
+-- Проверка работы планировщика:
+SHOW PROCESSLIST;
+
+-- Создание события event1
+CREATE EVENT IF NOT EXISTS event1
+ON SCHEDULE
+    -- Каждые 10 секунд, начиная с текущего момента
+    EVERY 10 SECOND
+    -- Завершить через 5 минут после начала первого выполнения
+    ENDS CURRENT_TIMESTAMP + INTERVAL 5 MINUTE
+ON COMPLETION PRESERVE   -- не удалять событие после завершения
+ENABLE
+COMMENT 'Выполняется каждые 10 секунд в течение 5 минут. Логирует дату/время и название'
+DO
+    INSERT INTO myEventTable (eventTime, eventName)
+    VALUES (NOW(), 'event1');
+
+-- -----------------------------------------------------
+-- 5.2 Событие event2: каждые 2 минуты 30 секунд в течение суток
+-- -----------------------------------------------------
+CREATE EVENT IF NOT EXISTS event2
+ON SCHEDULE
+    EVERY '2:30' MINUTE_SECOND   -- интервал 2 минуты 30 секунд
+    ENDS CURRENT_TIMESTAMP + INTERVAL 1 DAY
+ON COMPLETION PRESERVE
+ENABLE
+COMMENT 'Выполняется каждые 2 мин 30 сек в течение суток'
+DO
+    INSERT INTO myEventTable (eventTime, eventName)
+    VALUES (NOW(), 'event2');
+
+-- -----------------------------------------------------
+-- 5.3 Событие event3: однократное, в указанное время
+-- -----------------------------------------------------
+-- Пример: запуск через 1 минуту от текущего момента (для теста)
+-- В реальном задании замените на нужную дату и время, например:
+-- AT '2025-05-20 14:00:00'
+
+CREATE EVENT IF NOT EXISTS event3
+ON SCHEDULE
+    AT CURRENT_TIMESTAMP + INTERVAL 1 MINUTE   -- однократно через 1 минуту
+ON COMPLETION DROP   -- удалить событие после выполнения
+ENABLE
+COMMENT 'Однократное событие, после выполнения удаляется'
+DO
+    INSERT INTO myEventTable (eventTime, eventName)
+    VALUES (NOW(), 'event3');
+
+-- -----------------------------------------------------
+-- 5.4 Событие eventAuthor: ежедневно в 15:00
+-- -----------------------------------------------------
+-- Примечание: в задании сказано "удалять из таблицы Авторы тех, кто не написал ни одной книги".
+-- Предполагается, что есть таблицы Authors и Books.
+-- Примерная структура (если таблиц нет, создайте или адаптируйте):
+/*
+CREATE TABLE Authors (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100)
+);
+CREATE TABLE Books (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    author_id INT,
+    title VARCHAR(200),
+    FOREIGN KEY (author_id) REFERENCES Authors(id)
+);
+*/
+
+CREATE EVENT IF NOT EXISTS eventAuthor
+ON SCHEDULE
+    EVERY 1 DAY
+    STARTS TIMESTAMP(CURRENT_DATE, '15:00:00')   -- сегодня в 15:00, потом каждый день
+ON COMPLETION PRESERVE
+ENABLE
+COMMENT 'Ежедневно в 15:00: логирует событие и удаляет авторов без книг'
+DO
+BEGIN
+    -- Запись в лог
+    INSERT INTO myEventTable (eventTime, eventName)
+    VALUES (NOW(), 'eventAuthor');
+
+    -- Удаление авторов, у которых нет ни одной книги
+    DELETE FROM Authors
+    WHERE id NOT IN (SELECT DISTINCT author_id FROM Books WHERE author_id IS NOT NULL);
+END;
+
+-- -----------------------------------------------------
+-- 5.5 Просмотр информации о событиях через information_schema
+-- -----------------------------------------------------
+SELECT 
+    EVENT_SCHEMA,
+    EVENT_NAME,
+    STATUS,
+    EVENT_TYPE,
+    EXECUTE_AT,
+    INTERVAL_VALUE,
+    INTERVAL_FIELD,
+    STARTS,
+    ENDS,
+    LAST_EXECUTED,
+    EVENT_COMMENT
+FROM information_schema.EVENTS
+WHERE EVENT_SCHEMA = DATABASE();   -- покажет события текущей БД
+
+-- Объяснение полученных результатов (см. текстовый ответ ниже)
