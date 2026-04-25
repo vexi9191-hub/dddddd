@@ -1,0 +1,26 @@
+-- 5.1 Создание таблицы BooksInfo
+CREATE TABLE BooksInfo (
+    Код_книги INT PRIMARY KEY,
+    Название VARCHAR(255),
+    Фамилия_автора VARCHAR(100),
+    Имя_автора VARCHAR(100),
+    Год_выпуска INT,
+    Цена DECIMAL(10,2),
+    Количество_страниц INT
+);
+
+-- 5.2 Сделать код книги автоинкрементным
+ALTER TABLE BooksInfo
+MODIFY COLUMN Код_книги INT AUTO_INCREMENT;
+
+-- 5.3 Добавить ограничение на уникальность названия
+ALTER TABLE BooksInfo
+ADD CONSTRAINT unique_title UNIQUE (Название);
+
+-- 5.4 Добавить необязательное поле «Дата поступления»
+ALTER TABLE BooksInfo
+ADD COLUMN Дата_поступления DATE;
+
+-- 5.5 Удалить поле «Количество страниц»
+ALTER TABLE BooksInfo
+DROP COLUMN Количество_страниц;
