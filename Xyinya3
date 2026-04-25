@@ -1,0 +1,82 @@
+-- =====================================================
+-- 5.4 Событие eventAuthor: ежедневно в 15:00
+-- =====================================================
+-- Примечание: предполагается существование таблиц:
+--   Authors (id, name) и Books (id, author_id, title)
+-- Если их нет, создаём для примера:
+
+CREATE TABLE IF NOT EXISTS Authors (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Books (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    author_id INT,
+    title VARCHAR(200) NOT NULL,
+    FOREIGN KEY (author_id) REFERENCES Authors(id) ON DELETE CASCADE
+);
+
+-- Добавим тестовые данные
+INSERT INTO Authors (name) VALUES 
+    ('Иванов И.И.'),
+    ('Петров П.П.'),
+    ('Сидоров С.С.');
+
+INSERT INTO Books (author_id, title) VALUES 
+    (1, 'Книга 1'),
+    (1, 'Книга 2'),
+    (2, 'Книга 3');  -- у автора с id=3 (Сидоров) книг нет
+
+-- Создание события eventAuthor
+DROP EVENT IF EXISTS eventAuthor;
+
+CREATE EVENT eventAuthor
+ON SCHEDULE
+    EVERY 1 DAY
+    STARTS TIMESTAMP(CURRENT_DATE, '15:00:00')
+ON COMPLETION PRESERVE
+ENABLE
+COMMENT 'Ежедневно в 15:00: логирует событие и удаляет авторов без книг'
+DO
+BEGIN
+    -- 1. Записываем в лог-таблицу
+    INSERT INTO myEventTable (eventTime, eventName)
+    VALUES (NOW(), 'eventAuthor');
+    
+    -- 2. Удаляем авторов, у которых нет ни одной книги
+    DELETE FROM Authors
+    WHERE id NOT IN (SELECT DISTINCT author_id FROM Books WHERE author_id IS NOT NULL);
+END;
+
+-- Проверка: до выполнения события (автор Сидоров есть)
+SELECT * FROM Authors;
+
+-- После выполнения события в 15:00 автор Сидоров будет удалён
+
+
+-- =====================================================
+-- 5.5 Просмотр информации о событиях
+-- =====================================================
+
+-- Основной запрос
+SELECT 
+    EVENT_SCHEMA AS 'Схема БД',
+    EVENT_NAME AS 'Имя события',
+    STATUS AS 'Статус',
+    EVENT_TYPE AS 'Тип события',
+    EXECUTE_AT AS 'Время выполнения (однократное)',
+    INTERVAL_VALUE AS 'Значение интервала',
+    INTERVAL_FIELD AS 'Единица интервала',
+    STARTS AS 'Начало выполнения',
+    ENDS AS 'Окончание выполнения',
+    LAST_EXECUTED AS 'Последний запуск',
+    EVENT_COMMENT AS 'Комментарий'
+FROM information_schema.EVENTS
+WHERE EVENT_SCHEMA = DATABASE();
+
+-- Альтернативный способ (через SHOW):
+SHOW EVENTS FROM `Market`;  -- замените Market на имя вашей БД
+
+-- Подробная информация о конкретном событии:
+SHOW CREATE EVENT event1\G
