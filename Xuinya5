@@ -1,0 +1,37 @@
+CREATE OR REPLACE VIEW view_current_year_orders AS SELECT o.order_id AS order_number, o.order_date AS order_date, c.customer_id AS customer_code, c.login AS login, c.last_name AS last_name, c.first_name AS first_name FROM orders o JOIN customers c ON o.customer_id = c.customer_id WHERE YEAR(o.order_date) = YEAR(CURDATE()); SELECT * FROM view_current_year_orders;
+
+CREATE OR REPLACE VIEW view_book_info AS SELECT b.book_id AS book_code, a.last_name AS last_name, a.first_name AS first_name, b.title AS title, b.price AS price FROM books b JOIN book_authors ba ON b.book_id = ba.book_id JOIN authors a ON ba.author_id = a.author_id; SELECT * FROM view_book_info LIMIT 10;
+
+CREATE OR REPLACE VIEW view_author_books_list AS SELECT a.last_name AS last_name, a.first_name AS first_name, GROUP_CONCAT(DISTINCT b.title ORDER BY b.title SEPARATOR '; ') AS book_list FROM authors a JOIN book_authors ba ON a.author_id = ba.author_id JOIN books b ON ba.book_id = b.book_id GROUP BY a.author_id, a.last_name, a.first_name; SELECT * FROM view_author_books_list;
+
+CREATE OR REPLACE VIEW view_book_with_fairy_tale AS SELECT book_code, last_name, first_name, title, CASE WHEN title LIKE '%Сказки%' THEN 'Yes' ELSE 'No' END AS contains_fairy_tales, price FROM view_book_info; SELECT * FROM view_book_with_fairy_tale;
+
+CREATE OR REPLACE VIEW view_book_with_price_category AS SELECT book_code, last_name, first_name, title, CASE WHEN price < 1000 THEN 'up to 1000' WHEN price >= 1000 AND price < 5000 THEN 'from 1000 to 5000' WHEN price >= 5000 THEN 'from 5000' END AS price_category, price FROM view_book_info; SELECT * FROM view_book_with_price_category;
+
+
+
+
+
+DELIMITER $$ CREATE OR REPLACE FUNCTION get_order_total(p_order_id INT) RETURNS DECIMAL(10,2) DETERMINISTIC READS SQL DATA BEGIN DECLARE total DECIMAL(10,2); SELECT SUM(oi.quantity * b.price) INTO total FROM order_items oi JOIN books b ON oi.book_id = b.book_id WHERE oi.order_id = p_order_id; RETURN IFNULL(total, 0); END$$ DELIMITER ; SELECT get_order_total(1) AS order_total; SELECT order_id, get_order_total(order_id) FROM orders LIMIT 5;
+
+DELIMITER $$ CREATE OR REPLACE FUNCTION get_customer_name_upper(p_login VARCHAR(50)) RETURNS VARCHAR(100) DETERMINISTIC READS SQL DATA BEGIN DECLARE full_name VARCHAR(100); SELECT CONCAT(UPPER(first_name), ' ', UPPER(last_name)) INTO full_name FROM customers WHERE login = p_login; RETURN full_name; END$$ DELIMITER ; SELECT get_customer_name_upper('ivanov') AS customer_name; SELECT login, get_customer_name_upper(login) FROM customers LIMIT 5;
+
+DELIMITER $$ CREATE OR REPLACE FUNCTION get_author_books(p_author_id INT) RETURNS TEXT DETERMINISTIC READS SQL DATA BEGIN DECLARE book_list TEXT; SELECT GROUP_CONCAT(DISTINCT b.title ORDER BY b.title SEPARATOR '; ') INTO book_list FROM books b JOIN book_authors ba ON b.book_id = ba.book_id WHERE ba.author_id = p_author_id; RETURN IFNULL(book_list, ''); END$$ DELIMITER ; SELECT author_id, first_name, last_name, get_author_books(author_id) AS books FROM authors LIMIT 5;
+
+DELIMITER $$ CREATE OR REPLACE FUNCTION get_authors_by_country(p_country VARCHAR(100)) RETURNS INT DETERMINISTIC READS SQL DATA BEGIN DECLARE author_count INT; SELECT COUNT(*) INTO author_count FROM authors WHERE country = p_country; RETURN author_count; END$$ DELIMITER ; SELECT get_authors_by_country('Russia') AS authors_from_russia; SELECT get_authors_by_country('USA') AS authors_from_usa;
+
+DELIMITER $$ CREATE OR REPLACE FUNCTION get_profit_by_year(p_year INT) RETURNS DECIMAL(12,2) DETERMINISTIC READS SQL DATA BEGIN DECLARE profit DECIMAL(12,2); SELECT SUM(oi.quantity * b.price) INTO profit FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN books b ON oi.book_id = b.book_id WHERE YEAR(o.order_date) = p_year; RETURN IFNULL(profit, 0); END$$ DELIMITER ; SELECT get_profit_by_year(2023) AS profit_for_2023; SELECT get_profit_by_year(2024) AS profit_for_2024;
+
+
+
+
+
+DELIMITER $$ CREATE OR REPLACE PROCEDURE sp_add_customer(IN p_login VARCHAR(50), IN p_first_name VARCHAR(50), IN p_last_name VARCHAR(50), IN p_address VARCHAR(255), IN p_phone VARCHAR(20)) BEGIN INSERT INTO customers (login, first_name, last_name, address, phone) VALUES (p_login, p_first_name, p_last_name, p_address, p_phone); SELECT LAST_INSERT_ID() AS new_customer_id; END$$ DELIMITER ; CALL sp_add_customer('newuser', 'Ivan', 'Petrov', 'Moscow, Lenina str 1', '+79001234567');
+
+DELIMITER $$ CREATE OR REPLACE PROCEDURE sp_search_books_by_title(IN p_search_text VARCHAR(255)) BEGIN SELECT book_id AS book_code, title AS title, price AS price FROM books WHERE title LIKE CONCAT('%', p_search_text, '%') ORDER BY title; END$$ DELIMITER ; CALL sp_search_books_by_title('Fairy'); CALL sp_search_books_by_title('war');
+
+DELIMITER $$ CREATE OR REPLACE PROCEDURE sp_add_author(IN p_first_name VARCHAR(50), IN p_last_name VARCHAR(50), IN p_country VARCHAR(100), OUT p_author_id INT) BEGIN INSERT INTO authors (first_name, last_name, country) VALUES (p_first_name, p_last_name, p_country); SET p_author_id = LAST_INSERT_ID(); END$$ DELIMITER ; CALL sp_add_author('Alexander', 'Pushkin', 'Russia', @author_id); SELECT @author_id AS created_author_id; SELECT * FROM authors WHERE author_id = @author_id;
+
+DELIMITER $$ CREATE OR REPLACE PROCEDURE sp_update_prices_percent(IN p_percent INT) BEGIN UPDATE books SET price = price * (1 + p_percent / 100); SELECT CONCAT('Prices updated by ', p_percent, '%') AS result; END$$ DELIMITER ; CALL sp_update_prices_percent(10); CALL sp_update_prices_percent(-5);
+
+DELIMITER $$ CREATE OR REPLACE PROCEDURE sp_delete_authors_without_books() BEGIN DECLARE deleted_count INT; DELETE FROM authors WHERE author_id NOT IN (SELECT DISTINCT author_id FROM book_authors); SET deleted_count = ROW_COUNT(); SELECT CONCAT('Deleted authors: ', deleted_count) AS result; END$$ DELIMITER ; CALL sp_delete_authors_without_books();
