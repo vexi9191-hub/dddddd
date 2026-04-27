@@ -1,0 +1,49 @@
+CREATE OR REPLACE VIEW view_author_books_list AS
+SELECT 
+    a.last_name AS last_name,
+    a.first_name AS first_name,
+    GROUP_CONCAT(DISTINCT b.title ORDER BY b.title SEPARATOR '; ') AS book_list
+FROM authors a
+JOIN books b ON a.author_id = b.Authors_author_id
+GROUP BY a.author_id, a.last_name, a.first_name;
+
+SELECT * FROM view_author_books_list;
+
+
+
+
+
+CREATE OR REPLACE VIEW view_book_with_fairy_tale AS
+SELECT 
+    book_code,
+    last_name,
+    first_name,
+    title,
+    CASE 
+        WHEN title LIKE '%Сказки%' THEN 'Yes'
+        ELSE 'No'
+    END AS contains_fairy_tales,
+    price
+FROM view_book_info;
+
+SELECT * FROM view_book_with_fairy_tale;
+
+
+
+
+
+CREATE OR REPLACE VIEW view_book_with_price_category AS
+SELECT 
+    book_code,
+    last_name,
+    first_name,
+    title,
+    CASE 
+        WHEN price < 1000 THEN 'up to 1000'
+        WHEN price >= 1000 AND price < 5000 THEN 'from 1000 to 5000'
+        WHEN price >= 5000 THEN 'from 5000'
+    END AS price_category,
+    price
+FROM view_book_info;
+
+SELECT * FROM view_book_with_price_category;
