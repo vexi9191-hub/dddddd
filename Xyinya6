@@ -1,0 +1,103 @@
+-- Создание представления
+CREATE OR REPLACE VIEW view_current_year_orders AS
+SELECT 
+    o.order_id AS 'Номер',
+    o.order_date AS 'Дата',
+    c.customer_id AS 'КодЗаказчика',
+    c.login AS 'Логин',
+    c.last_name AS 'Фамилия',
+    c.first_name AS 'Имя'
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+WHERE YEAR(o.order_date) = YEAR(CURDATE());
+
+-- Тестирование
+SELECT * FROM view_current_year_orders;
+
+
+
+
+
+
+
+CREATE OR REPLACE VIEW view_book_info AS
+SELECT 
+    b.book_id AS 'КодКниги',
+    a.last_name AS 'Фамилия',
+    a.first_name AS 'Имя',
+    b.title AS 'Название',
+    b.price AS 'Цена'
+FROM books b
+JOIN book_authors ba ON b.book_id = ba.book_id
+JOIN authors a ON ba.author_id = a.author_id;
+
+-- Тестирование
+SELECT * FROM view_book_info LIMIT 10;
+
+
+
+
+
+
+
+
+CREATE OR REPLACE VIEW view_author_books_list AS
+SELECT 
+    a.last_name AS 'Фамилия',
+    a.first_name AS 'Имя',
+    GROUP_CONCAT(DISTINCT b.title ORDER BY b.title SEPARATOR '; ') AS 'Список книг'
+FROM authors a
+JOIN book_authors ba ON a.author_id = ba.author_id
+JOIN books b ON ba.book_id = b.book_id
+GROUP BY a.author_id, a.last_name, a.first_name;
+
+-- Тестирование
+SELECT * FROM view_author_books_list;
+
+
+
+
+
+
+
+
+CREATE OR REPLACE VIEW view_book_with_fairy_tale AS
+SELECT 
+    `КодКниги`,
+    `Фамилия`,
+    `Имя`,
+    `Название`,
+    CASE 
+        WHEN `Название` LIKE '%Сказки%' THEN 'Да'
+        ELSE 'Нет'
+    END AS 'Содержит_Сказки',
+    `Цена`
+FROM view_book_info;
+
+-- Тестирование
+SELECT * FROM view_book_with_fairy_tale;
+
+
+
+
+
+
+
+CREATE OR REPLACE VIEW view_book_with_price_category AS
+SELECT 
+    `КодКниги`,
+    `Фамилия`,
+    `Имя`,
+    `Название`,
+    CASE 
+        WHEN `Цена` < 1000 THEN 'до 1000'
+        WHEN `Цена` >= 1000 AND `Цена` < 5000 THEN 'от 1000 до 5000'
+        WHEN `Цена` >= 5000 THEN 'от 5000'
+    END AS 'Ценовая_категория',
+    `Цена`
+FROM view_book_info;
+
+-- Тестирование
+SELECT * FROM view_book_with_price_category;
+
+
