@@ -1,0 +1,69 @@
+-- Пересоздаём таблицу Logs (правильный тип для current_user)
+DROP TABLE IF EXISTS market.logs;
+CREATE TABLE market.logs (
+    log_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    table_name VARCHAR(50),
+    operation VARCHAR(20),
+    operation_datetime DATETIME,
+    current_user VARCHAR(255)
+);
+
+-- Триггеры для таблицы books (INSERT, UPDATE, DELETE)
+DELIMITER $$
+
+DROP TRIGGER IF EXISTS after_books_insert$$
+CREATE TRIGGER after_books_insert
+AFTER INSERT ON market.books
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('books', 'INSERT', NOW(), USER());
+END$$
+
+DROP TRIGGER IF EXISTS after_books_update$$
+CREATE TRIGGER after_books_update
+AFTER UPDATE ON market.books
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('books', 'UPDATE', NOW(), USER());
+END$$
+
+DROP TRIGGER IF EXISTS after_books_delete$$
+CREATE TRIGGER after_books_delete
+AFTER DELETE ON market.books
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('books', 'DELETE', NOW(), USER());
+END$$
+
+-- Триггеры для таблицы orders (INSERT, UPDATE, DELETE)
+DROP TRIGGER IF EXISTS after_orders_insert$$
+CREATE TRIGGER after_orders_insert
+AFTER INSERT ON market.orders
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'INSERT', NOW(), USER());
+END$$
+
+DROP TRIGGER IF EXISTS after_orders_update$$
+CREATE TRIGGER after_orders_update
+AFTER UPDATE ON market.orders
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'UPDATE', NOW(), USER());
+END$$
+
+DROP TRIGGER IF EXISTS after_orders_delete$$
+CREATE TRIGGER after_orders_delete
+AFTER DELETE ON market.orders
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'DELETE', NOW(), USER());
+END$$
+
+DELIMITER ;
