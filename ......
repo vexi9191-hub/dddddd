@@ -1,0 +1,121 @@
+-- 5.1 Стоимость заказа по номеру заказа
+DELIMITER $$
+CREATE FUNCTION GetOrderCost(orderId INT) 
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE totalCost DECIMAL(10,2);
+    
+    SELECT SUM(b.price * c.count) INTO totalCost
+    FROM market.books b
+    JOIN market.constrein c ON b.book_id = c.Books_book_id
+    WHERE c.Orders_order_id = orderId;
+    
+    RETURN IFNULL(totalCost, 0);
+END$$
+DELIMITER ;
+
+-- Проверка
+SELECT GetOrderCost(1) AS 'Стоимость заказа №1';
+
+
+
+
+
+
+-- 5.2 Имя и фамилия заказчика заглавными буквами по логину
+DELIMITER $$
+CREATE FUNCTION GetCustomerNameByLogin(userLogin VARCHAR(45)) 
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    DECLARE fullName VARCHAR(100);
+    
+    SELECT UPPER(CONCAT(first_name, ' ', last_name)) INTO fullName
+    FROM market.costumers
+    WHERE login = userLogin;
+    
+    RETURN IFNULL(fullName, 'Не найден');
+END$$
+DELIMITER ;
+
+-- Проверка
+SELECT GetCustomerNameByLogin('qwe') AS 'Заказчик';
+
+
+
+
+
+
+
+-- 5.3 Список названий книг автора по его ID
+DELIMITER $$
+CREATE FUNCTION GetBookTitlesByAuthor(authorId INT) 
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE titles TEXT DEFAULT '';
+    
+    SELECT GROUP_CONCAT(title SEPARATOR ', ') INTO titles
+    FROM market.books
+    WHERE Authors_author_id = authorId;
+    
+    RETURN titles;
+END$$
+DELIMITER ;
+
+-- Проверка
+SELECT GetBookTitlesByAuthor(1) AS 'Книги автора';
+
+
+
+
+
+
+
+-- 5.4 Количество авторов из указанной страны
+DELIMITER $$
+CREATE FUNCTION GetAuthorCountByCountry(countryName VARCHAR(100)) 
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE authorCount INT;
+    
+    SELECT COUNT(*) INTO authorCount
+    FROM market.authors
+    WHERE country = countryName;
+    
+    RETURN authorCount;
+END$$
+DELIMITER ;
+
+-- Проверка
+SELECT GetAuthorCountByCountry('Россия') AS 'Авторов из России';
+SELECT GetAuthorCountByCountry('Российская Империя') AS 'Авторов из Российской Империи';
+
+
+
+
+
+
+-- 5.5 Прибыль за указанный год
+DELIMITER $$
+CREATE FUNCTION GetProfitByYear(yearNum INT) 
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE totalProfit DECIMAL(10,2);
+    
+    SELECT SUM(b.price * c.count) INTO totalProfit
+    FROM market.orders o
+    JOIN market.constrein c ON o.order_id = c.Orders_order_id
+    JOIN market.books b ON c.Books_book_id = b.book_id
+    WHERE YEAR(o.order_date) = yearNum;
+    
+    RETURN IFNULL(totalProfit, 0);
+END$$
+DELIMITER ;
+
+-- Проверка
+SELECT GetProfitByYear(2025) AS 'Прибыль за 2025 год';
+SELECT GetProfitByYear(2026) AS 'Прибыль за 2026 год';
