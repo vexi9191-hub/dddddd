@@ -1,0 +1,148 @@
+DELIMITER $$
+
+CREATE FUNCTION GetOrderCost(order_id_param INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE total_cost DECIMAL(10,2);
+    
+    SELECT SUM(b.price * c.count)
+    INTO total_cost
+    FROM orders o
+    JOIN constrein c ON o.order_id = c.Orders_order_id
+    JOIN books b ON c.Books_book_id = b.book_id
+    WHERE o.order_id = order_id_param;
+    
+    RETURN IFNULL(total_cost, 0);
+END $$
+
+DELIMITER ;
+
+SELECT GetOrderCost(1) AS order_cost;
+
+
+
+
+
+DELIMITER $$
+
+CREATE FUNCTION GetCustomerNameByLogin(login_param VARCHAR(45))
+RETURNS VARCHAR(100)
+DETERMINISTIC
+BEGIN
+    DECLARE full_name VARCHAR(100);
+    
+    SELECT UPPER(CONCAT(first_name, ' ', last_name))
+    INTO full_name
+    FROM costumers
+    WHERE login = login_param;
+    
+    RETURN IFNULL(full_name, 'Not found');
+END $$
+
+DELIMITER ;
+
+SELECT GetCustomerNameByLogin('qwe') AS customer_name;
+
+
+
+
+
+
+
+DELIMITER $$
+
+CREATE FUNCTION GetBooksByAuthor(author_id_param INT)
+RETURNS TEXT
+DETERMINISTIC
+BEGIN
+    DECLARE book_list TEXT DEFAULT '';
+    
+    SELECT GROUP_CONCAT(title SEPARATOR ', ')
+    INTO book_list
+    FROM books
+    WHERE Authors_author_id = author_id_param;
+    
+    RETURN IFNULL(book_list, 'No books found');
+END $$
+
+DELIMITER ;
+
+SELECT GetBooksByAuthor(1) AS books_list;
+
+
+
+
+
+
+DELIMITER $$
+
+CREATE FUNCTION GetAuthorsCountByCountry(country_param VARCHAR(45))
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE author_count INT;
+    
+    SELECT COUNT(*)
+    INTO author_count
+    FROM authors
+    WHERE country = country_param;
+    
+    RETURN author_count;
+END $$
+
+DELIMITER ;
+
+SELECT GetBooksByAuthor(1) AS books_list;
+
+
+
+
+
+
+
+DELIMITER $$
+
+CREATE FUNCTION GetAuthorsCountByCountry(country_param VARCHAR(45))
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE author_count INT;
+    
+    SELECT COUNT(*)
+    INTO author_count
+    FROM authors
+    WHERE country = country_param;
+    
+    RETURN author_count;
+END $$
+
+DELIMITER ;
+
+SELECT GetAuthorsCountByCountry('Россия') AS authors_count;
+
+
+
+
+
+DELIMITER $$
+
+CREATE FUNCTION GetProfitByYear(year_param INT)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE total_profit DECIMAL(10,2);
+    
+    SELECT SUM(b.price * c.count)
+    INTO total_profit
+    FROM orders o
+    JOIN constrein c ON o.order_id = c.Orders_order_id
+    JOIN books b ON c.Books_book_id = b.book_id
+    WHERE YEAR(o.order_date) = year_param;
+    
+    RETURN IFNULL(total_profit, 0);
+END $$
+
+DELIMITER ;
+
+SELECT GetProfitByYear(2025) AS profit;
