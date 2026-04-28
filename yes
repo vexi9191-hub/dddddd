@@ -1,0 +1,92 @@
+DELIMITER $$
+CREATE PROCEDURE AddCustomer(
+    IN p_login VARCHAR(45),
+    IN p_first_name VARCHAR(45),
+    IN p_last_name VARCHAR(45),
+    IN p_address VARCHAR(255),
+    IN p_phone VARCHAR(20)
+)
+BEGIN
+    INSERT INTO market.costumers (login, first_name, last_name, address, phone)
+    VALUES (p_login, p_first_name, p_last_name, p_address, p_phone);
+    
+    SELECT LAST_INSERT_ID() AS 'ID нового заказчика';
+END$$
+DELIMITER ;
+
+-- Тестирование
+CALL AddCustomer('newuser', 'Иван', 'Петров', 'Москва, ул. Ленина 1', '89001234567');
+
+
+
+DELIMITER $$
+CREATE PROCEDURE FindBooksByTitle(IN searchText VARCHAR(255))
+BEGIN
+    SELECT * FROM market.books
+    WHERE title LIKE CONCAT('%', searchText, '%');
+END$$
+DELIMITER ;
+
+-- Тестирование (ищет книги со словом "prosa")
+CALL FindBooksByTitle('prosa');
+
+
+
+
+DELIMITER $$
+CREATE PROCEDURE AddAuthor(
+    IN p_first_name VARCHAR(45),
+    IN p_last_name VARCHAR(45),
+    IN p_country VARCHAR(100),
+    OUT p_author_id INT
+)
+BEGIN
+    INSERT INTO market.authors (first_name, last_name, country)
+    VALUES (p_first_name, p_last_name, p_country);
+    
+    SET p_author_id = LAST_INSERT_ID();
+END$$
+DELIMITER ;
+
+-- Тестирование
+CALL AddAuthor('Александр', 'Блок', 'Россия', @new_id);
+SELECT @new_id AS 'ID нового автора';
+
+
+
+DELIMITER $$
+CREATE PROCEDURE UpdateBookPrices(IN percentChange INT)
+BEGIN
+    UPDATE market.books
+    SET price = price * (1 + percentChange / 100);
+    
+    SELECT ROW_COUNT() AS 'Количество обновленных книг';
+END$$
+DELIMITER ;
+
+-- Тестирование (увеличить цены на 10%)
+CALL UpdateBookPrices(10);
+-- Проверка изменений
+SELECT book_id, title, price FROM market.books LIMIT 5;
+
+
+
+
+
+
+DELIMITER $$
+CREATE PROCEDURE DeleteAuthorsWithoutBooks()
+BEGIN
+    DELETE FROM market.authors
+    WHERE author_id NOT IN (
+        SELECT DISTINCT Authors_author_id 
+        FROM market.books 
+        WHERE Authors_author_id IS NOT NULL
+    );
+    
+    SELECT ROW_COUNT() AS 'Удалено авторов';
+END$$
+DELIMITER ;
+
+-- Тестирование
+CALL DeleteAuthorsWithoutBooks();
