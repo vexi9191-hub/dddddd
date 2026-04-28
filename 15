@@ -1,0 +1,168 @@
+-- Создаём таблицу для хранения удалённых заказчиков
+CREATE TABLE market.deleted_costumers (
+    deleted_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    costumer_id INT,
+    login VARCHAR(45),
+    last_name VARCHAR(45),
+    first_name VARCHAR(45),
+    address VARCHAR(255),
+    phone VARCHAR(20),
+    deleted_date DATETIME
+);
+
+-- Создаём AFTER DELETE триггер для таблицы costumers
+DELIMITER $$
+CREATE TRIGGER after_costumers_delete
+AFTER DELETE ON market.costumers
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.deleted_costumers (costumer_id, login, last_name, first_name, address, phone, deleted_date)
+    VALUES (OLD.costumer_id, OLD.login, OLD.last_name, OLD.first_name, OLD.address, OLD.phone, NOW());
+END$$
+DELIMITER ;
+
+-- Тестирование (проверим удаление)
+INSERT INTO market.costumers (login, last_name, first_name, address, phone) VALUES ('testdel', 'Тестов', 'Тест', 'Тест адрес', '999');
+DELETE FROM market.costumers WHERE login = 'testdel';
+SELECT * FROM market.deleted_costumers;
+
+
+
+
+-- Создаём таблицу Logs
+CREATE TABLE market.logs (
+    log_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    table_name VARCHAR(50),
+    operation VARCHAR(20),
+    operation_datetime DATETIME,
+    current_user VARCHAR(100)
+);
+
+-- Триггеры для таблицы books
+DELIMITER $$
+CREATE TRIGGER after_books_insert
+AFTER INSERT ON market.books
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('books', 'INSERT', NOW(), CURRENT_USER());
+END$$
+
+CREATE TRIGGER after_books_update
+AFTER UPDATE ON market.books
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('books', 'UPDATE', NOW(), CURRENT_USER());
+END$$
+
+CREATE TRIGGER after_books_delete
+AFTER DELETE ON market.books
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('books', 'DELETE', NOW(), CURRENT_USER());
+END$$
+DELIMITER ;
+
+-- Триггеры для таблицы orders
+DELIMITER $$
+CREATE TRIGGER after_orders_insert
+AFTER INSERT ON market.orders
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'INSERT', NOW(), CURRENT_USER());
+END$$
+
+CREATE TRIGGER after_orders_update
+AFTER UPDATE ON market.orders
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'UPDATE', NOW(), CURRENT_USER());
+END$$
+
+CREATE TRIGGER after_orders_delete
+AFTER DELETE ON market.orders
+FOR EACH ROW
+BEGIN
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'DELETE', NOW(), CURRENT_USER());
+END$$
+DELIMITER ;
+
+-- Тестирование
+INSERT INTO market.books (book_id, title, genre, price, weight, pages, year, Authors_author_id) 
+VALUES ('test1', 'Тест книга', 'proza', 100, 1, 100, 2024, 1);
+UPDATE market.books SET price = 150 WHERE book_id = 'test1';
+DELETE FROM market.books WHERE book_id = 'test1';
+SELECT * FROM market.logs;
+
+
+
+
+
+
+-- Сначала удаляем старый триггер, если есть
+DROP TRIGGER IF EXISTS market.after_orders_delete;
+
+-- Создаём изменённый триггер
+DELIMITER $$
+CREATE TRIGGER after_orders_delete
+AFTER DELETE ON market.orders
+FOR EACH ROW
+BEGIN
+    -- Логируем удаление
+    INSERT INTO market.logs (table_name, operation, operation_datetime, current_user)
+    VALUES ('orders', 'DELETE', NOW(), CURRENT_USER());
+    
+    -- Удаляем заказчиков, у которых нет заказов
+    DELETE FROM market.costumers
+    WHERE costumer_id NOT IN (
+        SELECT DISTINCT Costumers_costumer_id 
+        FROM market.orders 
+        WHERE Costumers_costumer_id IS NOT NULL
+    );
+END$$
+DELIMITER ;
+
+-- Тестирование (сначала создадим заказчика без заказов)
+INSERT INTO market.costumers (login, last_name, first_name, address, phone) 
+VALUES ('nobuyer', 'Беззаказный', 'Клиент', 'Адрес', '111');
+-- Удалим какой-нибудь заказ
+DELETE FROM market.orders WHERE order_id = 5;
+
+
+
+
+
+
+-- Удаляем старый триггер, если есть
+DROP TRIGGER IF EXISTS market.after_constrein_insert;
+
+
+-- Создаём изменённый триггер
+DELIMITER $$
+CREATE TRIGGER after_constrein_insert
+AFTER INSERT ON market.constrein
+FOR EACH ROW
+BEGIN
+    DECLARE order_total DECIMAL(10,2);
+    
+    -- Вычисляем общую стоимость заказа
+    SELECT SUM(b.price * c.count) INTO order_total
+    FROM market.constrein c
+    JOIN market.books b ON c.Books_book_id = b.book_id
+    WHERE c.Orders_order_id = NEW.Orders_order_id;
+    
+    -- Записываем в глобальную переменную
+    SET @orderCost = order_total;
+END$$
+DELIMITER ;
+
+-- Тестирование
+SET @orderCost = 0;
+SELECT @orderCost;
+INSERT INTO market.constrein (Orders_order_id, Books_book_id, count) VALUES (1, 'aaaaaa', 2);
+SELECT @orderCost AS 'Стоимость заказа';
